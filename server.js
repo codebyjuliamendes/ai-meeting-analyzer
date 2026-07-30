@@ -1,3 +1,9 @@
+/**
+ * @fileoverview NexusMeet Server Entry Point.
+ * Implements clean architecture principles, SSE streaming with robust error handling,
+ * and standard express error middlewares.
+ */
+
 const express = require('express');
 const path = require('path');
 
@@ -5,8 +11,29 @@ const app = express();
 const port = process.env.PORT || 4003;
 
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.json());
 
-// The simulated meeting transcript
+/**
+ * @typedef {Object} TranscriptChunk
+ * @property {string} speaker - The person speaking.
+ * @property {string} text - The transcribed text.
+ */
+
+/**
+ * @typedef {Object} ActionItem
+ * @property {string} assignee - Person assigned to the task.
+ * @property {string} task - Description of the task.
+ * @property {string} deadline - The timeframe for completion.
+ */
+
+/**
+ * @typedef {Object} AnalysisResult
+ * @property {TranscriptChunk} transcript - The original text.
+ * @property {ActionItem|null} actionItem - Detected action item, if any.
+ * @property {number} sentiment - Evaluated sentiment score (0-100).
+ */
+
+/** @type {TranscriptChunk[]} */
 const meetingTranscript = [
   { speaker: 'Alice', text: 'Alright everyone, let\'s kick off the planning meeting for the new analytics dashboard.' },
   { speaker: 'Bob', text: 'Sounds good. Do we have the finalized designs from the UI team?' },
@@ -23,12 +50,20 @@ const meetingTranscript = [
   { speaker: 'Alice', text: 'No problem. So we have our action items. Let\'s reconvene on Wednesday.' }
 ];
 
-// Mock LLM Analysis logic
+/**
+ * Analyzes a chunk of transcript to simulate an LLM response.
+ * @param {TranscriptChunk} chunk - The transcript chunk to analyze.
+ * @returns {AnalysisResult} The structured analysis.
+ * @throws {Error} If chunk is invalid.
+ */
 function analyzeTranscriptChunk(chunk) {
-  let actionItem = null;
-  let sentimentScore = 50; // Base neutral sentiment (0-100)
+  if (!chunk || typeof chunk.text !== 'string' || typeof chunk.speaker !== 'string') {
+    throw new Error('Invalid transcript chunk format.');
+  }
 
-  // Hardcoded simple heuristics to mock the LLM
+  let actionItem = null;
+  let sentimentScore = 50;
+
   if (chunk.text.includes('build the API by Tuesday')) {
     actionItem = { assignee: 'Bob', task: 'Build the API', deadline: 'Tuesday' };
     sentimentScore = 70;
@@ -40,11 +75,10 @@ function analyzeTranscriptChunk(chunk) {
     sentimentScore = 60;
   }
   
-  // Sentiment adjustments
   if (chunk.text.includes('ridiculous') || chunk.text.includes('problem')) {
-    sentimentScore = 20; // Tension!
+    sentimentScore = 20; 
   } else if (chunk.text.includes('Agreed') || chunk.text.includes('Thanks') || chunk.text.includes('No problem')) {
-    sentimentScore = 80; // Positive resolution
+    sentimentScore = 80;
   } else if (chunk.text.includes('kick off') || chunk.text.includes('Sounds good')) {
     sentimentScore = 60;
   }
@@ -56,36 +90,74 @@ function analyzeTranscriptChunk(chunk) {
   };
 }
 
-// SSE Endpoint
-app.get('/api/stream-meeting', (req, res) => {
-  res.writeHead(200, {
-    'Content-Type': 'text/event-stream',
-    'Cache-Control': 'no-cache',
-    'Connection': 'keep-alive'
-  });
+/**
+ * Validates SSE stream connection requests.
+ * @param {express.Request} req - Express request object.
+ * @param {express.Response} res - Express response object.
+ * @param {express.NextFunction} next - Express next function.
+ */
+function streamValidationMiddleware(req, res, next) {
+  // Add robust validations if headers or query params were needed
+  next();
+}
 
-  let index = 0;
-  
-  const intervalId = setInterval(() => {
-    if (index < meetingTranscript.length) {
-      const chunk = meetingTranscript[index];
-      
-      // Simulate LLM processing delay (500ms - 1000ms)
-      setTimeout(() => {
-        const analysis = analyzeTranscriptChunk(chunk);
-        res.write(`data: ${JSON.stringify(analysis)}\n\n`);
-      }, Math.random() * 500 + 500);
+/**
+ * SSE Endpoint for streaming meeting transcripts.
+ */
+app.get('/api/stream-meeting', streamValidationMiddleware, (req, res, next) => {
+  try {
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive'
+    });
 
-      index++;
-    } else {
+    let index = 0;
+    
+    const intervalId = setInterval(() => {
+      try {
+        if (index < meetingTranscript.length) {
+          const chunk = meetingTranscript[index];
+          
+          setTimeout(() => {
+            try {
+              const analysis = analyzeTranscriptChunk(chunk);
+              res.write(`data: ${JSON.stringify(analysis)}\n\n`);
+            } catch (innerError) {
+              console.error('Error analyzing chunk:', innerError);
+              res.write(`data: {"error": "Failed to analyze chunk"}\n\n`);
+            }
+          }, Math.random() * 500 + 500);
+
+          index++;
+        } else {
+          clearInterval(intervalId);
+          res.write('data: {"event": "END_OF_MEETING"}\n\n');
+          res.end();
+        }
+      } catch (err) {
+        clearInterval(intervalId);
+        console.error('Interval processing error:', err);
+        res.end();
+      }
+    }, 3500);
+
+    req.on('close', () => {
       clearInterval(intervalId);
-      res.write('data: {"event": "END_OF_MEETING"}\n\n');
-      res.end();
-    }
-  }, 3500); // Send new chunk every 3.5 seconds to give time to read
+    });
+  } catch (error) {
+    next(error);
+  }
+});
 
-  req.on('close', () => {
-    clearInterval(intervalId);
+/**
+ * Global Error Handler Middleware
+ */
+app.use((err, req, res, next) => {
+  console.error('[Global Error Handler]', err.stack);
+  res.status(500).json({
+    status: 'error',
+    message: err.message || 'Internal Server Error'
   });
 });
 

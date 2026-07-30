@@ -1,57 +1,74 @@
-# Live Meeting Intelligence
+# NexusMeet AI - Live Meeting Intelligence 🚀
 
-A futuristic AI portfolio project demonstrating real-time analysis of a live meeting transcript using Server-Sent Events (SSE).
+[![Node.js](https://img.shields.io/badge/Node.js-18.x-green.svg)](https://nodejs.org/)
+[![Express](https://img.shields.io/badge/Express-4.x-lightgrey.svg)](https://expressjs.com/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.x-38B2AC?logo=tailwind-css)](https://tailwindcss.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
-## 🚀 The Scenario
+NexusMeet is a futuristic, real-time meeting analytics dashboard demonstrating Server-Sent Events (SSE) combined with mock LLM parsing. It simulates a live virtual meeting (like Zoom or Teams) by streaming transcript chunks, dynamically plotting team sentiment, and auto-generating Kanban action items.
 
-This project simulates a live team meeting where three participants (Alice, Bob, and Charlie) discuss building a new analytics dashboard. As they speak, their conversation is streamed to the frontend, simulating real-time audio transcription.
+## ✨ Features
+- **Real-Time Streaming**: Server-Sent Events (SSE) for low-latency updates without polling.
+- **Glassmorphism UI**: Beautiful, dark-mode Tailwind UI mimicking modern web apps.
+- **Live Sentiment Analysis**: Dynamic Chart.js graph reflecting meeting tension or resolution.
+- **Auto-Kanban Generation**: Extracts actionable tasks and deadlines on the fly.
 
-Simultaneously, a mock AI (acting as an LLM stream processor) analyzes the chunks on the fly and:
-- Extracts **Action Items** and assigns them to the right person, mapping them to a Kanban board.
-- Analyzes the **Sentiment / Tension** of the conversation, updating a live Chart.js sparkline graph in real-time.
+## 🛠 Built With
+* **Backend:** Node.js, Express.js (Clean Architecture, Error Middleware, JSDoc)
+* **Frontend:** Vanilla JS, HTML5, Chart.js
+* **Design System:** Tailwind CSS (via CDN)
 
-All of this happens autonomously. There are no submit buttons; you just watch the magic happen.
-
-## 🏗️ Architecture
+## 🏗 Architecture Diagram
 
 ```mermaid
-graph TD
-    A[Mock Live Audio Transcript] -->|Streaming Chunks| B(Node.js Backend)
-    B -->|Analyzes chunk| C{Mock LLM Adapter}
-    C -->|Extracts Sentiment & Actions| B
-    B -->|Server-Sent Events JSON| D(Frontend Application)
-    D --> E[Live Transcript Sidebar]
-    D --> F[Live Kanban Board]
-    D --> G[Sentiment Graph Chart.js]
+sequenceDiagram
+    participant Browser
+    participant Express Server
+    participant Analyzer Logic
+    
+    Browser->>Express Server: GET /api/stream-meeting (SSE Request)
+    Express Server-->>Browser: Establish keep-alive connection
+    
+    loop Every 3.5 seconds
+        Express Server->>Analyzer Logic: Pass transcript chunk
+        Analyzer Logic-->>Express Server: Return analysis (sentiment, action item)
+        Express Server-->>Browser: push "data: { analysis }\n\n"
+        Browser->>Browser: Update DOM, highlight speaker, update chart
+    end
+    
+    Express Server-->>Browser: push "data: { event: 'END_OF_MEETING' }\n\n"
+    Express Server->>Express Server: Close Connection
 ```
 
-## 🛠️ Tech Stack
-- **Backend:** Node.js, Express, Server-Sent Events (SSE)
-- **Frontend:** HTML5, CSS Grid, Vanilla JS
-- **UI Design:** Dark mode, Glassmorphism, CSS Animations
-- **Visualizations:** Chart.js
+## 🧠 Architectural Decisions & Trade-offs
 
-## 🌟 The "Why"
-This project demonstrates the ability to build seamless, autonomous, real-time AI interfaces. Instead of standard "Chatbots", the future of AI is ambient intelligence—agents that listen, understand, and organize information for us while we focus on the human conversation.
+### 1. Server-Sent Events (SSE) vs WebSockets
+**Why:** SSE was chosen over WebSockets because the data flow is strictly unidirectional (Server to Client). WebSockets introduce overhead for framing and bi-directional tracking, which is unnecessary for a broadcast-only transcript feed.
+**Trade-off:** SSE is HTTP-based and limited to 6 concurrent connections per browser domain, but it automatically handles reconnections and is much simpler to implement.
 
-## ⚖️ Trade-offs
-- **Mocked LLM:** To ensure this runs locally without API keys and without latency issues for a portfolio demo, the LLM is mocked via heuristic analysis and `setTimeout` to mimic realistic API delays. It's designed in a way that the `analyzeTranscriptChunk` function could easily be swapped out for a real OpenAI/Gemini call in the future.
-- **SSE vs WebSockets:** Used SSE instead of WebSockets because the communication is strictly unidirectional (Server to Client). SSE is lighter, built-in to HTTP, and perfect for streaming LLM responses.
+### 2. Tailwind CSS via CDN vs PostCSS Build
+**Why:** Used the Tailwind CDN for zero-configuration, instant prototyping of a sleek glassmorphism design. 
+**Trade-off:** The CDN approach is not recommended for production due to the large script size and client-side processing, but it dramatically accelerates the development of proof-of-concepts without needing a bundler.
 
-## 🏃 Quick Start
+### 3. Error Handling Middleware
+**Why:** We employed an Express global error-handling middleware coupled with `try/catch` inside the `setInterval` loop to prevent the node process from crashing during unhandled mock LLM exceptions.
+**Trade-off:** Manual cleanup of the `intervalId` is required if an error abruptly terminates the request to prevent memory leaks.
 
-1. Install dependencies:
+## 🚀 Quick Start
+
+1. **Install dependencies:**
    ```bash
    npm install
    ```
-2. Start the server:
+
+2. **Run the application:**
    ```bash
-   npm start
-   # or
    node server.js
    ```
-3. Open your browser and navigate to:
-   ```
-   http://localhost:3000
-   ```
-4. Sit back and watch the meeting unfold!
+
+3. **View the Dashboard:**
+   Open your browser and navigate to `http://localhost:4003`. 
+   *Sit back and watch the AI meeting analysis stream live!*
+
+## 📜 License
+Distributed under the MIT License.

@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
     datasets: [{
       label: 'Team Mood',
       data: [50],
-      borderColor: '#58a6ff',
+      borderColor: '#3b82f6', // blue-500
       backgroundColor: gradient,
       borderWidth: 2,
       pointBackgroundColor: '#fff',
@@ -62,10 +62,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // --- Helpers ---
   function updateSpeakerHighlight(speaker) {
-    Object.values(videoBoxes).forEach(box => box.classList.remove('speaking'));
+    Object.values(videoBoxes).forEach(box => {
+      box.classList.remove('speaking-glow', 'scale-105', 'border-brand');
+      box.classList.add('border-transparent');
+    });
     if (videoBoxes[speaker]) {
-      videoBoxes[speaker].classList.add('speaking');
+      videoBoxes[speaker].classList.remove('border-transparent');
+      videoBoxes[speaker].classList.add('speaking-glow', 'scale-105', 'border-brand');
     }
+  }
+
+  function getSpeakerColor(speaker) {
+    const colors = {
+      Alice: 'text-indigo-400',
+      Bob: 'text-blue-400',
+      Charlie: 'text-emerald-400'
+    };
+    return colors[speaker] || 'text-slate-400';
   }
 
   function appendTranscript(msg) {
@@ -74,10 +87,18 @@ document.addEventListener('DOMContentLoaded', () => {
     if (waiting) waiting.remove();
 
     const div = document.createElement('div');
-    div.className = `transcript-msg ${msg.speaker}`;
+    div.className = 'bg-slate-800/60 p-3 rounded-xl border border-slate-700/50 transform transition-all duration-300 translate-y-2 opacity-0 shadow-sm';
+    
+    // Slight delay to trigger animation
+    setTimeout(() => {
+      div.classList.remove('translate-y-2', 'opacity-0');
+    }, 50);
+
+    const speakerColor = getSpeakerColor(msg.speaker);
+
     div.innerHTML = `
-      <div class="msg-header">${msg.speaker}</div>
-      <div class="msg-text">${msg.text}</div>
+      <div class="text-xs font-bold ${speakerColor} mb-1 tracking-wide uppercase">${msg.speaker}</div>
+      <div class="text-sm text-slate-300 leading-relaxed">${msg.text}</div>
     `;
     transcriptContainer.appendChild(div);
     transcriptContainer.scrollTop = transcriptContainer.scrollHeight;
@@ -85,12 +106,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function createActionItem(item) {
     const card = document.createElement('div');
-    card.className = 'kanban-card';
+    card.className = 'bg-slate-700/50 hover:bg-slate-700 p-3 rounded-lg border border-slate-600/50 shadow-sm transition-colors duration-200 group';
     card.innerHTML = `
-      <div class="card-title">${item.task}</div>
-      <div class="card-meta">
-        <span class="assignee">@${item.assignee}</span>
-        <span class="deadline">🎯 ${item.deadline}</span>
+      <div class="text-sm font-medium text-slate-200 mb-2 group-hover:text-white transition-colors">${item.task}</div>
+      <div class="flex items-center justify-between text-xs">
+        <span class="bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded border border-indigo-500/30 font-medium">@${item.assignee}</span>
+        <span class="text-amber-400/90 flex items-center gap-1 font-medium"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> ${item.deadline}</span>
       </div>
     `;
     todoContainer.appendChild(card);
@@ -107,7 +128,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } else if (sentimentScore > 70) {
       sentimentChart.data.datasets[0].borderColor = '#2ea043'; // Green
     } else {
-      sentimentChart.data.datasets[0].borderColor = '#58a6ff'; // Blue
+      sentimentChart.data.datasets[0].borderColor = '#3b82f6'; // Blue
     }
 
     // Keep last 10 points max
@@ -120,37 +141,56 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // --- SSE Connection ---
-  const eventSource = new EventSource('/api/stream-meeting');
+  let eventSource = null;
 
-  eventSource.onmessage = (event) => {
-    const data = JSON.parse(event.data);
-    
-    if (data.event === 'END_OF_MEETING') {
+  function connectSSE() {
+    eventSource = new EventSource('/api/stream-meeting');
+
+    eventSource.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      
+      if (data.event === 'END_OF_MEETING') {
+        eventSource.close();
+        
+        const statusInd = document.querySelector('.status-indicator');
+        statusInd.className = 'flex items-center gap-3 bg-slate-800/80 px-4 py-1.5 rounded-full border border-slate-700/50 status-indicator';
+        statusInd.innerHTML = '<span class="text-sm font-medium text-slate-400 status-text">Meeting Ended</span>';
+        
+        Object.values(videoBoxes).forEach(box => {
+          box.classList.remove('speaking-glow', 'scale-105', 'border-brand');
+          box.classList.add('border-transparent');
+        });
+        return;
+      }
+
+      if (data.error) {
+        console.error('Server error:', data.error);
+        return;
+      }
+
+      // 1. Highlight Speaker
+      updateSpeakerHighlight(data.transcript.speaker);
+
+      // 2. Add Transcript
+      appendTranscript(data.transcript);
+
+      // 3. Check for Action Items
+      if (data.actionItem) {
+        createActionItem(data.actionItem);
+      }
+
+      // 4. Update Sentiment Graph
+      updateChart(data.sentiment);
+    };
+
+    eventSource.onerror = (err) => {
+      console.error('SSE Error:', err);
       eventSource.close();
-      document.querySelector('.status-indicator').innerHTML = 'Meeting Ended';
-      document.querySelector('.status-indicator').style.color = '#8b949e';
-      document.querySelector('.status-indicator').style.background = 'rgba(255,255,255,0.1)';
-      Object.values(videoBoxes).forEach(box => box.classList.remove('speaking'));
-      return;
-    }
+      
+      const statusInd = document.querySelector('.status-indicator');
+      statusInd.innerHTML = '<span class="text-sm font-medium text-red-400 status-text">Connection Lost</span>';
+    };
+  }
 
-    // 1. Highlight Speaker
-    updateSpeakerHighlight(data.transcript.speaker);
-
-    // 2. Add Transcript
-    appendTranscript(data.transcript);
-
-    // 3. Check for Action Items
-    if (data.actionItem) {
-      createActionItem(data.actionItem);
-    }
-
-    // 4. Update Sentiment Graph
-    updateChart(data.sentiment);
-  };
-
-  eventSource.onerror = (err) => {
-    console.error('SSE Error:', err);
-    eventSource.close();
-  };
+  connectSSE();
 });
