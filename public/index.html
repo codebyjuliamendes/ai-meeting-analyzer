@@ -6,6 +6,7 @@
   <title>NexusMeet - Live AI Intelligence</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
   <script>
     tailwind.config = {
       darkMode: 'class',
@@ -92,7 +93,7 @@
         <!-- Kanban -->
         <div class="flex-1 glass-panel rounded-2xl p-4 flex flex-col min-w-0">
           <h3 class="flex items-center gap-2 font-semibold text-slate-200 mb-3 text-lg">
-            <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+            <i data-lucide="list-todo" class="w-5 h-5 text-indigo-400"></i>
             Live Action Items
           </h3>
           <div class="flex gap-4 h-full overflow-hidden">
@@ -110,7 +111,7 @@
         <!-- Sentiment Chart -->
         <div class="flex-1 glass-panel rounded-2xl p-4 flex flex-col min-w-0">
           <h3 class="flex items-center gap-2 font-semibold text-slate-200 mb-3 text-lg">
-            <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
+            <i data-lucide="activity" class="w-5 h-5 text-blue-400"></i>
             Conversation Sentiment
           </h3>
           <div class="flex-1 relative w-full">
@@ -131,8 +132,21 @@
       </div>
       
       <div id="transcript-container" class="flex-1 overflow-y-auto p-4 space-y-4 scroll-smooth">
-        <div class="waiting-text text-center text-slate-500 italic mt-10 text-sm">
-          Waiting for meeting to begin...
+        <div class="waiting-text flex flex-col gap-3">
+          <div class="animate-pulse flex gap-3">
+            <div class="w-8 h-8 bg-slate-700 rounded-full"></div>
+            <div class="flex-1 space-y-2 py-1">
+              <div class="h-2 bg-slate-700 rounded w-1/4"></div>
+              <div class="h-2 bg-slate-700 rounded w-3/4"></div>
+            </div>
+          </div>
+          <div class="animate-pulse flex gap-3 mt-2">
+            <div class="w-8 h-8 bg-slate-700 rounded-full"></div>
+            <div class="flex-1 space-y-2 py-1">
+              <div class="h-2 bg-slate-700 rounded w-1/3"></div>
+              <div class="h-2 bg-slate-700 rounded w-5/6"></div>
+            </div>
+          </div>
         </div>
       </div>
       
@@ -142,6 +156,7 @@
 
   </main>
   
+  <div id="toast-container" class="fixed bottom-4 right-4 flex flex-col gap-2 z-[9999]"></div>
   <script src="app.js"></script>
 </body>
 </html>

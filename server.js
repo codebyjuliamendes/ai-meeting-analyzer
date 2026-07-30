@@ -6,9 +6,20 @@
 
 const express = require('express');
 const path = require('path');
+const helmet = require('helmet');
+const cors = require('cors');
+const compression = require('compression');
 
 const app = express();
 const port = process.env.PORT || 4003;
+
+try {
+  app.use(helmet());
+  app.use(cors());
+  app.use(compression());
+} catch (err) {
+  console.warn('Middleware init error:', err);
+}
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());

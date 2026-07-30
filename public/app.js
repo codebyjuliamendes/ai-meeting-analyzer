@@ -1,4 +1,8 @@
 document.addEventListener('DOMContentLoaded', () => {
+  if (window.lucide) {
+    lucide.createIcons();
+  }
+
   // --- UI Elements ---
   const transcriptContainer = document.getElementById('transcript-container');
   const todoContainer = document.querySelector('#col-todo .cards-container');
@@ -61,6 +65,30 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // --- Helpers ---
+  function showToast(message, type = 'success') {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+    const toast = document.createElement('div');
+    const iconName = type === 'success' ? 'check-circle' : (type === 'info' ? 'info' : 'alert-circle');
+    const iconColor = type === 'success' ? 'text-emerald-400' : (type === 'info' ? 'text-blue-400' : 'text-red-400');
+    
+    toast.className = 'glass-panel p-3 rounded-lg border border-slate-700/50 flex items-center gap-3 shadow-lg transform transition-all duration-300 translate-x-full opacity-0';
+    toast.innerHTML = `
+      <i data-lucide="${iconName}" class="w-5 h-5 ${iconColor}"></i>
+      <span class="text-sm font-medium text-slate-200">${message}</span>
+    `;
+    container.appendChild(toast);
+    if (window.lucide) lucide.createIcons({ root: toast });
+    
+    requestAnimationFrame(() => {
+      toast.classList.remove('translate-x-full', 'opacity-0');
+    });
+
+    setTimeout(() => {
+      toast.classList.add('translate-x-full', 'opacity-0');
+      setTimeout(() => toast.remove(), 300);
+    }, 4000);
+  }
   function updateSpeakerHighlight(speaker) {
     Object.values(videoBoxes).forEach(box => {
       box.classList.remove('speaking-glow', 'scale-105', 'border-brand');
@@ -111,10 +139,12 @@ document.addEventListener('DOMContentLoaded', () => {
       <div class="text-sm font-medium text-slate-200 mb-2 group-hover:text-white transition-colors">${item.task}</div>
       <div class="flex items-center justify-between text-xs">
         <span class="bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded border border-indigo-500/30 font-medium">@${item.assignee}</span>
-        <span class="text-amber-400/90 flex items-center gap-1 font-medium"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> ${item.deadline}</span>
+        <span class="text-amber-400/90 flex items-center gap-1 font-medium"><i data-lucide="clock" class="w-3 h-3"></i> ${item.deadline}</span>
       </div>
     `;
     todoContainer.appendChild(card);
+    if (window.lucide) lucide.createIcons({ root: card });
+    showToast(`New task assigned to ${item.assignee}`, 'success');
   }
 
   function updateChart(sentimentScore) {
@@ -160,6 +190,7 @@ document.addEventListener('DOMContentLoaded', () => {
           box.classList.remove('speaking-glow', 'scale-105', 'border-brand');
           box.classList.add('border-transparent');
         });
+        showToast('Meeting stream ended', 'info');
         return;
       }
 
@@ -189,8 +220,10 @@ document.addEventListener('DOMContentLoaded', () => {
       
       const statusInd = document.querySelector('.status-indicator');
       statusInd.innerHTML = '<span class="text-sm font-medium text-red-400 status-text">Connection Lost</span>';
+      showToast('Connection lost', 'error');
     };
   }
 
+  showToast('Connecting to NexusMeet stream...', 'info');
   connectSSE();
 });
