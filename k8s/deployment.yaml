@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-meeting-analyzer
+  labels:
+    app: ai-meeting-analyzer
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ai-meeting-analyzer
+  template:
+    metadata:
+      labels:
+        app: ai-meeting-analyzer
+    spec:
+      containers:
+      - name: ai-meeting-analyzer
+        image: ai-meeting-analyzer:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 4003
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 250m
+            memory: 256Mi
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 4003
+          initialDelaySeconds: 10
+          periodSeconds: 15
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 4003
+          initialDelaySeconds: 5
+          periodSeconds: 10

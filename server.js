@@ -24,6 +24,10 @@ try {
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 
+app.get('/api-docs', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'api-docs.html'));
+});
+
 /**
  * @typedef {Object} TranscriptChunk
  * @property {string} speaker - The person speaking.

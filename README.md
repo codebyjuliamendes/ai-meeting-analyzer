@@ -74,3 +74,8 @@ sequenceDiagram
 
 ## 📜 License
 Distributed under the MIT License.
+
+## Kubernetes & CI/CD
+- **Kubernetes**: Fully configured with Deployment, Service, and Ingress manifests in the \k8s/\ directory.
+- **CI/CD**: GitHub Actions workflow added for automated testing and Docker validation.
+- **API Documentation**: Swagger UI integrated at \/api-docs\ to document the \/api/stream-meeting\ SSE endpoint.
