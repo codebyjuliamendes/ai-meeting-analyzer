@@ -8,10 +8,12 @@
 NexusMeet is a futuristic, real-time meeting analytics dashboard demonstrating Server-Sent Events (SSE) combined with mock LLM parsing. It simulates a live virtual meeting (like Zoom or Teams) by streaming transcript chunks, dynamically plotting team sentiment, and auto-generating Kanban action items.
 
 ## ✨ Features
-- **Real-Time Streaming**: Server-Sent Events (SSE) for low-latency updates without polling.
-- **Glassmorphism UI**: Beautiful, dark-mode Tailwind UI mimicking modern web apps.
-- **Live Sentiment Analysis**: Dynamic Chart.js graph reflecting meeting tension or resolution.
-- **Auto-Kanban Generation**: Extracts actionable tasks and deadlines on the fly.
+- **Real-Time Streaming Simulation:** Uses Server-Sent Events (SSE) to simulate Web Audio Whisper ingestion of a meeting stream.
+- **Client-Side Sorting:** Ensures exact client-side timestamp sorting for incoming SSE chunks, resolving out-of-order Whisper transcription deliveries.
+- **High-Frequency Sentiment Radar:** Provides <1s sentiment radar updates to track team mood in real-time.
+- **Auto-Extraction:** Identifies action items and assigns tasks dynamically from conversational context.
+- **Clean Architecture:** Built on Node.js/Express with simple, modular logic and standard middleware.
+- **Modern UI:** Tailwind CSS and Lucide Icons integrated with no build step.
 
 ## 🛠 Built With
 * **Backend:** Node.js, Express.js (Clean Architecture, Error Middleware, JSDoc)
