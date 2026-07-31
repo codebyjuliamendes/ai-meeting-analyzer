@@ -115,21 +115,41 @@ document.addEventListener('DOMContentLoaded', () => {
     if (waiting) waiting.remove();
 
     const div = document.createElement('div');
-    div.className = 'bg-slate-800/60 p-3 rounded-xl border border-slate-700/50 transform transition-all duration-300 translate-y-2 opacity-0 shadow-sm';
+    div.className = 'transcript-item bg-slate-800/60 p-3 rounded-xl border border-slate-700/50 transform transition-all duration-300 opacity-0 shadow-sm';
+    div.dataset.timestamp = msg.timestamp || Date.now();
     
-    // Slight delay to trigger animation
-    setTimeout(() => {
-      div.classList.remove('translate-y-2', 'opacity-0');
-    }, 50);
-
-    const speakerColor = getSpeakerColor(msg.speaker);
+    const speakerColor = getSpeakerColor(msg.transcript.speaker);
+    const timeString = new Date(msg.timestamp || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
     div.innerHTML = `
-      <div class="text-xs font-bold ${speakerColor} mb-1 tracking-wide uppercase">${msg.speaker}</div>
-      <div class="text-sm text-slate-300 leading-relaxed">${msg.text}</div>
+      <div class="text-xs font-bold ${speakerColor} mb-1 tracking-wide uppercase flex justify-between">
+        <span>${msg.transcript.speaker}</span>
+        <span class="text-slate-500 font-normal normal-case">${timeString}</span>
+      </div>
+      <div class="text-sm text-slate-300 leading-relaxed">${msg.transcript.text}</div>
     `;
-    transcriptContainer.appendChild(div);
+    
+    // Exact client-side timestamp sorting
+    let inserted = false;
+    const items = Array.from(transcriptContainer.querySelectorAll('.transcript-item'));
+    for (let i = 0; i < items.length; i++) {
+      if (parseInt(div.dataset.timestamp) < parseInt(items[i].dataset.timestamp)) {
+        transcriptContainer.insertBefore(div, items[i]);
+        inserted = true;
+        break;
+      }
+    }
+    
+    if (!inserted) {
+      transcriptContainer.appendChild(div);
+    }
+    
     transcriptContainer.scrollTop = transcriptContainer.scrollHeight;
+
+    // Slight delay to trigger animation
+    setTimeout(() => {
+      div.classList.remove('opacity-0');
+    }, 50);
   }
 
   function createActionItem(item) {
@@ -199,19 +219,26 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
+      if (data.event === 'SENTIMENT_RADAR') {
+        updateChart(data.score);
+        return;
+      }
+
       // 1. Highlight Speaker
       updateSpeakerHighlight(data.transcript.speaker);
 
-      // 2. Add Transcript
-      appendTranscript(data.transcript);
+      // 2. Add Transcript with exact client-side timestamp sorting
+      appendTranscript(data);
 
       // 3. Check for Action Items
       if (data.actionItem) {
         createActionItem(data.actionItem);
       }
 
-      // 4. Update Sentiment Graph
-      updateChart(data.sentiment);
+      // 4. Update Sentiment Graph for context-based changes
+      if (data.sentiment) {
+        updateChart(data.sentiment);
+      }
     };
 
     eventSource.onerror = (err) => {

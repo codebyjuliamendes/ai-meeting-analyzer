@@ -123,38 +123,47 @@ app.get('/api/stream-meeting', streamValidationMiddleware, (req, res, next) => {
       'Connection': 'keep-alive'
     });
 
-    let index = 0;
-    
-    const intervalId = setInterval(() => {
-      try {
-        if (index < meetingTranscript.length) {
-          const chunk = meetingTranscript[index];
-          
-          setTimeout(() => {
-            try {
-              const analysis = analyzeTranscriptChunk(chunk);
-              res.write(`data: ${JSON.stringify(analysis)}\n\n`);
-            } catch (innerError) {
-              console.error('Error analyzing chunk:', innerError);
-              res.write(`data: {"error": "Failed to analyze chunk"}\n\n`);
-            }
-          }, Math.random() * 500 + 500);
+    // <1s sentiment radar updates
+    const radarInterval = setInterval(() => {
+      const simulatedSentiment = Math.floor(Math.random() * 40) + 30; // Random mood 30-70
+      res.write(`data: ${JSON.stringify({ event: 'SENTIMENT_RADAR', score: simulatedSentiment })}\n\n`);
+    }, 800);
 
-          index++;
-        } else {
-          clearInterval(intervalId);
-          res.write('data: {"event": "END_OF_MEETING"}\n\n');
-          res.end();
+    let chunksSent = 0;
+    const totalChunks = meetingTranscript.length;
+    const baseTime = Date.now();
+    const timeouts = [];
+
+    // Simulated Web Audio Whisper ingestion
+    meetingTranscript.forEach((chunk, index) => {
+      // Whisper simulation: random processing delay causing out-of-order delivery
+      const whisperProcessingDelay = Math.random() * 4000 + 500; 
+      const logicalSpokenTime = baseTime + (index * 2500); 
+
+      const tId = setTimeout(() => {
+        try {
+          const analysis = analyzeTranscriptChunk(chunk);
+          analysis.timestamp = logicalSpokenTime; // for exact client-side timestamp sorting
+          res.write(`data: ${JSON.stringify(analysis)}\n\n`);
+        } catch (innerError) {
+          console.error('Error analyzing chunk:', innerError);
+          res.write(`data: {"error": "Failed to analyze chunk"}\n\n`);
+        } finally {
+          chunksSent++;
+          if (chunksSent === totalChunks) {
+            clearInterval(radarInterval);
+            res.write('data: {"event": "END_OF_MEETING"}\n\n');
+            res.end();
+          }
         }
-      } catch (err) {
-        clearInterval(intervalId);
-        console.error('Interval processing error:', err);
-        res.end();
-      }
-    }, 3500);
+      }, (index * 2500) + whisperProcessingDelay);
+      
+      timeouts.push(tId);
+    });
 
     req.on('close', () => {
-      clearInterval(intervalId);
+      clearInterval(radarInterval);
+      timeouts.forEach(clearTimeout);
     });
   } catch (error) {
     next(error);
