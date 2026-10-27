@@ -14,28 +14,67 @@ spec:
       labels:
         app: ai-meeting-analyzer
     spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 20
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
-      - name: ai-meeting-analyzer
-        image: ai-meeting-analyzer:latest
-        imagePullPolicy: IfNotPresent
-        ports:
-        - containerPort: 4003
-        resources:
-          requests:
-            cpu: 100m
-            memory: 128Mi
-          limits:
-            cpu: 250m
-            memory: 256Mi
-        livenessProbe:
-          httpGet:
-            path: /
-            port: 4003
-          initialDelaySeconds: 10
-          periodSeconds: 15
-        readinessProbe:
-          httpGet:
-            path: /
-            port: 4003
-          initialDelaySeconds: 5
-          periodSeconds: 10
+        - name: ai-meeting-analyzer
+          # Replace with your registry image and pin a tag or digest.
+          image: ai-meeting-analyzer:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 4003
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: PORT
+              value: '4003'
+            - name: TRUST_PROXY
+              value: '1'
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: ai-meeting-analyzer
+                  key: anthropic-api-key
+                  # Optional: without the secret the app runs in (clearly labelled) demo mode.
+                  optional: true
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ['ALL']
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 2
+            failureThreshold: 15
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            periodSeconds: 5
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
