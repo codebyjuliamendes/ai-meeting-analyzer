@@ -3,16 +3,20 @@ kind: Ingress
 metadata:
   name: ai-meeting-analyzer-ingress
   annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
+    # Server-Sent Events: disable buffering and allow long-lived connections.
+    nginx.ingress.kubernetes.io/proxy-buffering: 'off'
+    nginx.ingress.kubernetes.io/proxy-read-timeout: '3600'
+    nginx.ingress.kubernetes.io/proxy-send-timeout: '3600'
+    nginx.ingress.kubernetes.io/proxy-body-size: '1m'
 spec:
   ingressClassName: nginx
   rules:
-  - http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: ai-meeting-analyzer-svc
-            port:
-              number: 4003
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ai-meeting-analyzer-svc
+                port:
+                  number: 4003

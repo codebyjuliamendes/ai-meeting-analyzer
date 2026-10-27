@@ -1,10 +1,23 @@
-version: '3.8'
 services:
   app:
     build: .
+    image: ai-meeting-analyzer:local
     ports:
-      - "4003:4003"
+      - '${HOST_PORT:-4003}:4003'
     environment:
-      - PORT=4003
-      - NODE_ENV=production
+      PORT: 4003
+      NODE_ENV: production
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      # Leave empty to run in demo mode (keyword heuristics, clearly labelled in the UI).
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-opus-5-5}
+      AI_PROVIDER: ${AI_PROVIDER:-auto}
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     restart: unless-stopped
+    stop_grace_period: 15s

@@ -1,20 +1,46 @@
 {
   "name": "ai-meeting-analyzer",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Meeting transcript analyzer: summary, sentiment, action items, decisions and risks via the Anthropic API, with a labelled demo mode and a live SSE replay.",
+  "main": "server.js",
+  "type": "commonjs",
+  "license": "MIT",
+  "author": "Júlia Mendes",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "start": "node server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "node --watch server.js",
+    "test": "node --test 'test/**/*.test.js'",
+    "test:coverage": "node --test --experimental-test-coverage 'test/**/*.test.js'",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "tsc -p tsconfig.json",
+    "check": "npm run lint && npm run format:check && npm run typecheck && npm test"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.3.0",
+    "chart.js": "^4.6.1",
     "compression": "^1.8.1",
-    "cors": "^2.8.6",
     "express": "^5.2.1",
-    "helmet": "^8.3.0"
+    "express-rate-limit": "^8.7.1",
+    "helmet": "^8.3.0",
+    "pino": "^10.4.0",
+    "swagger-ui-dist": "^5.34.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/compression": "^1.8.1",
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.6.5",
+    "eslint": "^10.13.0",
+    "globals": "^17.13.0",
+    "prettier": "^3.9.10",
+    "supertest": "^7.3.1",
+    "typescript": "^7.0.2"
   }
 }

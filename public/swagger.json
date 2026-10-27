@@ -1,30 +1,166 @@
 {
-  "openapi": "3.0.0",
+  "openapi": "3.0.3",
   "info": {
     "title": "NexusMeet API",
-    "description": "API documentation for NexusMeet AI Meeting Analyzer",
-    "version": "1.0.0"
+    "description": "Meeting transcript analysis (summary, sentiment, action items, decisions, risks) and a scripted live-meeting demo stream. When no AI provider is configured the server runs in demo mode and analysis uses keyword heuristics (provider = \"demo\").",
+    "version": "2.0.0"
   },
-  "servers": [
-    {
-      "url": "http://localhost:4003",
-      "description": "Local server"
-    }
-  ],
+  "servers": [{ "url": "/" }],
   "paths": {
-    "/api/stream-meeting": {
-      "get": {
-        "summary": "Stream Meeting Transcript Analysis",
-        "description": "SSE Endpoint for streaming meeting transcripts with sentiment analysis and action items.",
+    "/api/analyze": {
+      "post": {
+        "summary": "Analyze a meeting transcript",
+        "description": "Send exactly one of `text` (\"Speaker: text\" per line) or `utterances`. Rate limited per client IP. The transcript is not stored.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/AnalyzeRequest" },
+              "example": {
+                "title": "Weekly sync",
+                "text": "Ana: I will send the report by Friday.\nBruno: Great, thanks!"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
-            "description": "A Server-Sent Events stream",
+            "description": "Validated analysis",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AnalyzeResponse" } } }
+          },
+          "400": { "$ref": "#/components/responses/Error" },
+          "413": { "$ref": "#/components/responses/Error" },
+          "415": { "$ref": "#/components/responses/Error" },
+          "422": { "$ref": "#/components/responses/Error" },
+          "429": { "$ref": "#/components/responses/Error" },
+          "502": { "$ref": "#/components/responses/Error" },
+          "503": { "$ref": "#/components/responses/Error" },
+          "504": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/api/stream-meeting": {
+      "get": {
+        "summary": "Scripted live meeting replay (Server-Sent Events, demo)",
+        "description": "Each `data:` line is a JSON object with an `event` field: MEETING_START, UTTERANCE, ERROR, END_OF_MEETING or SERVER_SHUTDOWN. Utterances may arrive out of order; sort by `timestamp`.",
+        "responses": {
+          "200": {
+            "description": "Event stream",
+            "content": { "text/event-stream": { "schema": { "type": "string" } } }
+          },
+          "429": { "$ref": "#/components/responses/Error" },
+          "503": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/api/config": {
+      "get": {
+        "summary": "Active analysis provider",
+        "responses": {
+          "200": {
+            "description": "Provider info",
             "content": {
-              "text/event-stream": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "type": "object",
+                  "properties": {
+                    "provider": { "type": "string", "enum": ["anthropic", "demo"] },
+                    "model": { "type": "string" },
+                    "demo": { "type": "boolean" },
+                    "limits": { "type": "object", "properties": { "maxTranscriptChars": { "type": "integer" } } }
+                  }
                 }
               }
+            }
+          }
+        }
+      }
+    },
+    "/healthz": { "get": { "summary": "Liveness probe", "responses": { "200": { "description": "OK" } } } },
+    "/readyz": {
+      "get": {
+        "summary": "Readiness probe",
+        "responses": { "200": { "description": "Ready" }, "503": { "description": "Draining" } }
+      }
+    }
+  },
+  "components": {
+    "responses": {
+      "Error": {
+        "description": "Error",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      }
+    },
+    "schemas": {
+      "Utterance": {
+        "type": "object",
+        "required": ["speaker", "text"],
+        "properties": {
+          "speaker": { "type": "string", "maxLength": 80 },
+          "text": { "type": "string", "maxLength": 4000 }
+        }
+      },
+      "AnalyzeRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "title": { "type": "string", "maxLength": 200 },
+          "text": { "type": "string" },
+          "utterances": { "type": "array", "maxItems": 1000, "items": { "$ref": "#/components/schemas/Utterance" } }
+        }
+      },
+      "AnalyzeResponse": {
+        "type": "object",
+        "properties": {
+          "provider": { "type": "string", "enum": ["anthropic", "demo"] },
+          "model": { "type": "string" },
+          "utterances": { "type": "array", "items": { "$ref": "#/components/schemas/Utterance" } },
+          "analysis": {
+            "type": "object",
+            "properties": {
+              "summary": { "type": "string" },
+              "overallSentiment": {
+                "type": "object",
+                "properties": {
+                  "score": { "type": "integer", "minimum": 0, "maximum": 100 },
+                  "label": { "type": "string", "enum": ["negative", "neutral", "positive"] }
+                }
+              },
+              "actionItems": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "assignee": { "type": "string" },
+                    "task": { "type": "string" },
+                    "deadline": { "type": "string", "nullable": true },
+                    "sourceIndex": { "type": "integer" }
+                  }
+                }
+              },
+              "decisions": { "type": "array", "items": { "type": "string" } },
+              "risks": { "type": "array", "items": { "type": "string" } },
+              "utteranceSentiment": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": { "index": { "type": "integer" }, "score": { "type": "integer" } }
+                }
+              }
+            }
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": { "type": "string" },
+              "message": { "type": "string" },
+              "details": {},
+              "requestId": { "type": "string" }
             }
           }
         }
