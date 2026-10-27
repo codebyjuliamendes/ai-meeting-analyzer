@@ -1,190 +1,78 @@
-/**
- * @fileoverview NexusMeet Server Entry Point.
- * Implements clean architecture principles, SSE streaming with robust error handling,
- * and standard express error middlewares.
- */
-
-const express = require('express');
-const path = require('path');
-const helmet = require('helmet');
-const cors = require('cors');
-const compression = require('compression');
-
-const app = express();
-const port = process.env.PORT || 4003;
-
-try {
-  app.use(helmet());
-  app.use(cors());
-  app.use(compression());
-} catch (err) {
-  console.warn('Middleware init error:', err);
-}
-
-app.use(express.static(path.join(__dirname, 'public')));
-app.use(express.json());
-
-app.get('/api-docs', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'api-docs.html'));
-});
+'use strict';
 
 /**
- * @typedef {Object} TranscriptChunk
- * @property {string} speaker - The person speaking.
- * @property {string} text - The transcribed text.
+ * Process entry point: validates configuration, wires dependencies, starts the HTTP server
+ * and handles graceful shutdown.
  */
 
-/**
- * @typedef {Object} ActionItem
- * @property {string} assignee - Person assigned to the task.
- * @property {string} task - Description of the task.
- * @property {string} deadline - The timeframe for completion.
- */
+const { loadConfig } = require('./src/config');
+const { createLogger } = require('./src/logger');
+const { createProvider } = require('./src/providers');
+const { createAnalysisService } = require('./src/services/analysisService');
+const { createApp } = require('./src/app');
 
-/**
- * @typedef {Object} AnalysisResult
- * @property {TranscriptChunk} transcript - The original text.
- * @property {ActionItem|null} actionItem - Detected action item, if any.
- * @property {number} sentiment - Evaluated sentiment score (0-100).
- */
-
-/** @type {TranscriptChunk[]} */
-const meetingTranscript = [
-  { speaker: 'Alice', text: 'Alright everyone, let\'s kick off the planning meeting for the new analytics dashboard.' },
-  { speaker: 'Bob', text: 'Sounds good. Do we have the finalized designs from the UI team?' },
-  { speaker: 'Charlie', text: 'Not yet, they said they\'d have them by tomorrow.' },
-  { speaker: 'Alice', text: 'Okay, we can start on the backend setup first.' },
-  { speaker: 'Bob', text: 'I can build the API by Tuesday.' },
-  { speaker: 'Alice', text: 'Great. Charlie, what about the database schema?' },
-  { speaker: 'Charlie', text: 'I\'ll draft the schema tonight and send it over for review.' },
-  { speaker: 'Bob', text: 'Actually, there\'s a problem. We don\'t have the updated user metrics. We can\'t build the schema without them.' },
-  { speaker: 'Charlie', text: 'That\'s ridiculous, I asked for those metrics last week!' },
-  { speaker: 'Alice', text: 'Let\'s calm down. I will email the data team right after this call and get them.' },
-  { speaker: 'Bob', text: 'Thanks Alice. If we get them today, we\'re still on track.' },
-  { speaker: 'Charlie', text: 'Agreed. Sorry for the outburst, just stressed about the deadline.' },
-  { speaker: 'Alice', text: 'No problem. So we have our action items. Let\'s reconvene on Wednesday.' }
-];
-
-/**
- * Analyzes a chunk of transcript to simulate an LLM response.
- * @param {TranscriptChunk} chunk - The transcript chunk to analyze.
- * @returns {AnalysisResult} The structured analysis.
- * @throws {Error} If chunk is invalid.
- */
-function analyzeTranscriptChunk(chunk) {
-  if (!chunk || typeof chunk.text !== 'string' || typeof chunk.speaker !== 'string') {
-    throw new Error('Invalid transcript chunk format.');
-  }
-
-  let actionItem = null;
-  let sentimentScore = 50;
-
-  if (chunk.text.includes('build the API by Tuesday')) {
-    actionItem = { assignee: 'Bob', task: 'Build the API', deadline: 'Tuesday' };
-    sentimentScore = 70;
-  } else if (chunk.text.includes('draft the schema tonight')) {
-    actionItem = { assignee: 'Charlie', task: 'Draft database schema', deadline: 'Tonight' };
-    sentimentScore = 75;
-  } else if (chunk.text.includes('email the data team')) {
-    actionItem = { assignee: 'Alice', task: 'Email data team for metrics', deadline: 'Today' };
-    sentimentScore = 60;
-  }
-  
-  if (chunk.text.includes('ridiculous') || chunk.text.includes('problem')) {
-    sentimentScore = 20; 
-  } else if (chunk.text.includes('Agreed') || chunk.text.includes('Thanks') || chunk.text.includes('No problem')) {
-    sentimentScore = 80;
-  } else if (chunk.text.includes('kick off') || chunk.text.includes('Sounds good')) {
-    sentimentScore = 60;
-  }
-
-  return {
-    transcript: chunk,
-    actionItem,
-    sentiment: sentimentScore
-  };
-}
-
-/**
- * Validates SSE stream connection requests.
- * @param {express.Request} req - Express request object.
- * @param {express.Response} res - Express response object.
- * @param {express.NextFunction} next - Express next function.
- */
-function streamValidationMiddleware(req, res, next) {
-  // Add robust validations if headers or query params were needed
-  next();
-}
-
-/**
- * SSE Endpoint for streaming meeting transcripts.
- */
-app.get('/api/stream-meeting', streamValidationMiddleware, (req, res, next) => {
+function main() {
+  let config;
   try {
-    res.writeHead(200, {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive'
-    });
-
-    // <1s sentiment radar updates
-    const radarInterval = setInterval(() => {
-      const simulatedSentiment = Math.floor(Math.random() * 40) + 30; // Random mood 30-70
-      res.write(`data: ${JSON.stringify({ event: 'SENTIMENT_RADAR', score: simulatedSentiment })}\n\n`);
-    }, 800);
-
-    let chunksSent = 0;
-    const totalChunks = meetingTranscript.length;
-    const baseTime = Date.now();
-    const timeouts = [];
-
-    // Simulated Web Audio Whisper ingestion
-    meetingTranscript.forEach((chunk, index) => {
-      // Whisper simulation: random processing delay causing out-of-order delivery
-      const whisperProcessingDelay = Math.random() * 4000 + 500; 
-      const logicalSpokenTime = baseTime + (index * 2500); 
-
-      const tId = setTimeout(() => {
-        try {
-          const analysis = analyzeTranscriptChunk(chunk);
-          analysis.timestamp = logicalSpokenTime; // for exact client-side timestamp sorting
-          res.write(`data: ${JSON.stringify(analysis)}\n\n`);
-        } catch (innerError) {
-          console.error('Error analyzing chunk:', innerError);
-          res.write(`data: {"error": "Failed to analyze chunk"}\n\n`);
-        } finally {
-          chunksSent++;
-          if (chunksSent === totalChunks) {
-            clearInterval(radarInterval);
-            res.write('data: {"event": "END_OF_MEETING"}\n\n');
-            res.end();
-          }
-        }
-      }, (index * 2500) + whisperProcessingDelay);
-      
-      timeouts.push(tId);
-    });
-
-    req.on('close', () => {
-      clearInterval(radarInterval);
-      timeouts.forEach(clearTimeout);
-    });
-  } catch (error) {
-    next(error);
+    config = loadConfig();
+  } catch (err) {
+    // Logger depends on config; fall back to a plain structured line.
+    process.stderr.write(`${JSON.stringify({ level: 'fatal', msg: /** @type {Error} */ (err).message })}\n`);
+    process.exit(1);
   }
-});
 
-/**
- * Global Error Handler Middleware
- */
-app.use((err, req, res, next) => {
-  console.error('[Global Error Handler]', err.stack);
-  res.status(500).json({
-    status: 'error',
-    message: err.message || 'Internal Server Error'
+  const logger = createLogger({ level: config.logLevel });
+  const provider = createProvider(config.ai);
+  const analysisService = createAnalysisService({
+    provider,
+    deadlineMs: config.ai.timeoutMs * 2 + 5000,
+    logger,
   });
-});
+  const { app, drain } = createApp({ config, logger, analysisService });
 
-app.listen(port, () => {
-  console.log(`Server running at http://localhost:${port}`);
-});
+  const server = app.listen(config.port, config.host, () => {
+    logger.info(
+      { port: config.port, host: config.host, provider: provider.name, model: provider.model },
+      provider.name === 'demo'
+        ? 'server started in DEMO mode (no AI provider configured; set ANTHROPIC_API_KEY for real analysis)'
+        : 'server started',
+    );
+  });
+  // Long AI calls: keep sockets open long enough for the analysis deadline.
+  server.requestTimeout = config.ai.timeoutMs * 2 + 15000;
+  server.headersTimeout = 30000;
+  server.keepAliveTimeout = 65000;
+
+  let shuttingDown = false;
+  /** @param {string} signal */
+  const shutdown = (signal) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    logger.info({ signal }, 'shutting down');
+    drain();
+    const force = setTimeout(() => {
+      logger.warn('forcing shutdown after timeout');
+      server.closeAllConnections();
+      process.exit(1);
+    }, config.shutdownTimeoutMs);
+    force.unref();
+    server.close((err) => {
+      if (err) logger.error({ err: { message: err.message } }, 'error while closing server');
+      logger.info('shutdown complete');
+      process.exit(err ? 1 : 0);
+    });
+    server.closeIdleConnections();
+  };
+
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
+  process.on('unhandledRejection', (reason) => {
+    logger.error({ err: { message: String(reason) } }, 'unhandled promise rejection');
+  });
+  process.on('uncaughtException', (err) => {
+    logger.fatal({ err: { message: err.message, stack: err.stack } }, 'uncaught exception');
+    process.exit(1);
+  });
+}
+
+main();
