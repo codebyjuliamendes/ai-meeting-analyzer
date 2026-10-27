@@ -1,162 +1,160 @@
-<!DOCTYPE html>
-<html lang="en" class="dark">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NexusMeet - Live AI Intelligence</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://unpkg.com/lucide@latest"></script>
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          colors: {
-            brand: '#58a6ff',
-            'bg-glass': 'rgba(255, 255, 255, 0.05)',
-            'border-glass': 'rgba(255, 255, 255, 0.1)',
-          },
-          animation: {
-            pulse: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-          }
-        }
-      }
-    }
-  </script>
-  <style>
-    /* Minimal custom CSS for scrollbar and glow effects since Tailwind handles the rest */
-    ::-webkit-scrollbar { width: 6px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
-    .glass-panel {
-      background: rgba(30, 41, 59, 0.7);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-    .speaking-glow {
-      box-shadow: 0 0 20px 2px rgba(88, 166, 255, 0.4);
-      border-color: #58a6ff !important;
-    }
-    body { background-color: #0f172a; color: #f8fafc; font-family: 'Inter', sans-serif; }
-  </style>
-</head>
-<body class="h-screen w-screen overflow-hidden flex flex-col bg-slate-900 text-slate-100">
-  
-  <!-- Header -->
-  <header class="flex items-center justify-between px-6 py-4 glass-panel z-10 border-b border-slate-700/50">
-    <div class="flex items-center gap-2">
-      <div class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-indigo-500">NexusMeet</div>
-      <span class="bg-indigo-600 text-xs font-semibold px-2 py-0.5 rounded-full">AI</span>
-    </div>
-    <div class="text-lg font-medium tracking-wide text-slate-300">
-      Planning Meeting: Analytics Dashboard
-    </div>
-    <div class="flex items-center gap-3 bg-slate-800/80 px-4 py-1.5 rounded-full border border-slate-700/50 status-indicator">
-      <span class="relative flex h-3 w-3">
-        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 pulse-ring"></span>
-        <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500 pulse-core"></span>
-      </span>
-      <span class="text-sm font-medium text-emerald-400 status-text">Live Analysis Active</span>
-    </div>
-  </header>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <title>NexusMeet – Meeting Analyzer</title>
+    <link rel="stylesheet" href="/css/styles.css" />
+    <script src="/js/theme.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-name">NexusMeet</span>
+        <span class="brand-tag">Meeting analyzer</span>
+      </div>
+      <div class="topbar-actions">
+        <span id="mode-badge" class="badge" role="status">Loading…</span>
+        <button id="theme-toggle" class="icon-button" type="button" aria-label="Toggle dark mode" aria-pressed="false">
+          <svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20">
+            <path fill="currentColor" d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9Z" />
+          </svg>
+        </button>
+      </div>
+    </header>
 
-  <!-- Main Content Layout -->
-  <main class="flex-1 flex overflow-hidden p-4 gap-4">
-    
-    <!-- Left/Center Column (Video & Intelligence) -->
-    <div class="flex-1 flex flex-col gap-4 min-w-0">
-      
-      <!-- Video Grid -->
-      <section class="flex-1 flex justify-center items-center gap-4 p-4 glass-panel rounded-2xl relative overflow-hidden">
-        <div class="absolute inset-0 bg-gradient-to-b from-transparent to-slate-900/50 pointer-events-none"></div>
-        
-        <div id="video-alice" class="relative group w-1/3 aspect-video bg-slate-800 rounded-xl border-2 border-transparent overflow-hidden transition-all duration-300 transform hover:scale-105 flex flex-col items-center justify-center">
-          <div class="w-20 h-20 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-3xl font-bold mb-2 shadow-lg">A</div>
-          <div class="absolute bottom-3 left-3 bg-black/60 px-3 py-1 rounded-md text-sm font-medium backdrop-blur-sm">Alice (Lead)</div>
+    <div id="demo-banner" class="banner" hidden>
+      <strong>Demo mode.</strong> No AI provider is configured, so analysis uses simple keyword heuristics, not an AI
+      model. Set <code>ANTHROPIC_API_KEY</code> on the server for real analysis.
+    </div>
+
+    <nav class="tabs" aria-label="Views">
+      <div role="tablist" aria-label="Views">
+        <button id="tab-analyze" role="tab" type="button" aria-selected="true" aria-controls="panel-analyze">
+          Analyze transcript
+        </button>
+        <button id="tab-live" role="tab" type="button" aria-selected="false" aria-controls="panel-live" tabindex="-1">
+          Live demo
+        </button>
+      </div>
+    </nav>
+
+    <main id="main" tabindex="-1">
+      <!-- Analyze -->
+      <section id="panel-analyze" role="tabpanel" aria-labelledby="tab-analyze" class="panel">
+        <form id="analyze-form" class="card form" novalidate>
+          <h1 class="card-title">Analyze a meeting transcript</h1>
+          <p class="muted">
+            Paste a transcript with one utterance per line in the format <code>Speaker: text</code>.
+            <span id="privacy-note"
+              >The transcript is processed only for this request and is not stored by this server.</span
+            >
+          </p>
+          <label for="title-input">Meeting title <span class="muted">(optional)</span></label>
+          <input id="title-input" name="title" type="text" maxlength="200" autocomplete="off" />
+
+          <label for="transcript-input">Transcript</label>
+          <textarea
+            id="transcript-input"
+            name="transcript"
+            rows="10"
+            required
+            spellcheck="false"
+            aria-describedby="char-count form-error"
+            placeholder="Alice: Let's start the weekly sync.&#10;Bob: I'll send the release notes by Friday."
+          ></textarea>
+          <div class="form-meta">
+            <span id="char-count" class="muted" aria-live="polite">0 characters</span>
+          </div>
+          <p id="form-error" class="error" role="alert" hidden></p>
+          <div class="actions">
+            <button id="analyze-button" class="button primary" type="submit">Analyze</button>
+            <button id="sample-button" class="button" type="button">Load sample</button>
+            <button id="clear-button" class="button ghost" type="button">Clear</button>
+          </div>
+        </form>
+
+        <div id="analysis-status" class="status" role="status" aria-live="polite"></div>
+
+        <div id="analysis-empty" class="card empty">
+          <p>Results appear here after you analyze a transcript.</p>
         </div>
-        
-        <div id="video-bob" class="relative group w-1/3 aspect-video bg-slate-800 rounded-xl border-2 border-transparent overflow-hidden transition-all duration-300 transform hover:scale-105 flex flex-col items-center justify-center">
-          <div class="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-3xl font-bold mb-2 shadow-lg">B</div>
-          <div class="absolute bottom-3 left-3 bg-black/60 px-3 py-1 rounded-md text-sm font-medium backdrop-blur-sm">Bob (Backend)</div>
-        </div>
-        
-        <div id="video-charlie" class="relative group w-1/3 aspect-video bg-slate-800 rounded-xl border-2 border-transparent overflow-hidden transition-all duration-300 transform hover:scale-105 flex flex-col items-center justify-center">
-          <div class="w-20 h-20 rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center text-3xl font-bold mb-2 shadow-lg">C</div>
-          <div class="absolute bottom-3 left-3 bg-black/60 px-3 py-1 rounded-md text-sm font-medium backdrop-blur-sm">Charlie (Data)</div>
+
+        <div id="analysis-results" class="results" hidden>
+          <article class="card">
+            <h2 class="card-title">Summary</h2>
+            <p id="result-provider" class="muted small"></p>
+            <p id="result-summary"></p>
+          </article>
+          <article class="card">
+            <h2 class="card-title">Sentiment</h2>
+            <p id="result-sentiment" class="sentiment-score"></p>
+            <div class="chart-box">
+              <canvas id="analysis-chart" role="img" aria-label="Sentiment per utterance"></canvas>
+            </div>
+          </article>
+          <article class="card">
+            <h2 class="card-title">Action items</h2>
+            <ul id="result-actions" class="task-list"></ul>
+          </article>
+          <article class="card">
+            <h2 class="card-title">Decisions</h2>
+            <ul id="result-decisions" class="plain-list"></ul>
+          </article>
+          <article class="card">
+            <h2 class="card-title">Risks and blockers</h2>
+            <ul id="result-risks" class="plain-list"></ul>
+          </article>
+          <article class="card wide">
+            <h2 class="card-title">Transcript</h2>
+            <ol id="result-transcript" class="transcript"></ol>
+          </article>
         </div>
       </section>
 
-      <!-- Bottom Panel (Intelligence) -->
-      <section class="h-64 flex gap-4">
-        <!-- Kanban -->
-        <div class="flex-1 glass-panel rounded-2xl p-4 flex flex-col min-w-0">
-          <h3 class="flex items-center gap-2 font-semibold text-slate-200 mb-3 text-lg">
-            <i data-lucide="list-todo" class="w-5 h-5 text-indigo-400"></i>
-            Live Action Items
-          </h3>
-          <div class="flex gap-4 h-full overflow-hidden">
-            <div id="col-todo" class="flex-1 bg-slate-800/50 rounded-xl p-3 flex flex-col border border-slate-700/50">
-              <h4 class="text-xs uppercase font-bold text-slate-400 mb-3 tracking-wider">To Do</h4>
-              <div class="cards-container flex-1 overflow-y-auto space-y-2 pr-1"></div>
-            </div>
-            <div id="col-in-progress" class="flex-1 bg-slate-800/50 rounded-xl p-3 flex flex-col border border-slate-700/50">
-              <h4 class="text-xs uppercase font-bold text-slate-400 mb-3 tracking-wider">In Progress</h4>
-              <div class="cards-container flex-1 overflow-y-auto space-y-2 pr-1"></div>
-            </div>
+      <!-- Live demo -->
+      <section id="panel-live" role="tabpanel" aria-labelledby="tab-live" class="panel" hidden>
+        <div class="card live-header">
+          <div>
+            <h1 class="card-title">Live meeting replay</h1>
+            <p class="muted">
+              A scripted, fictional meeting streamed over Server-Sent Events and scored with the demo heuristics.
+            </p>
+          </div>
+          <div class="actions">
+            <span id="live-status" class="badge" role="status">Idle</span>
+            <button id="live-start" class="button primary" type="button">Start replay</button>
+            <button id="live-stop" class="button" type="button" disabled>Stop</button>
           </div>
         </div>
-        
-        <!-- Sentiment Chart -->
-        <div class="flex-1 glass-panel rounded-2xl p-4 flex flex-col min-w-0">
-          <h3 class="flex items-center gap-2 font-semibold text-slate-200 mb-3 text-lg">
-            <i data-lucide="activity" class="w-5 h-5 text-blue-400"></i>
-            Conversation Sentiment
-          </h3>
-          <div class="flex-1 relative w-full">
-            <canvas id="sentimentChart" class="absolute inset-0 w-full h-full"></canvas>
-          </div>
+        <div class="live-grid">
+          <div id="participants" class="card participants" aria-label="Participants"></div>
+          <article class="card">
+            <h2 class="card-title">Action items</h2>
+            <ul id="live-actions" class="task-list"></ul>
+            <p id="live-actions-empty" class="muted">No action items yet.</p>
+          </article>
+          <article class="card">
+            <h2 class="card-title">Sentiment</h2>
+            <div class="chart-box"><canvas id="live-chart" role="img" aria-label="Live sentiment"></canvas></div>
+          </article>
+          <article class="card transcript-card">
+            <h2 class="card-title">Transcript</h2>
+            <ol id="live-transcript" class="transcript" aria-live="polite"></ol>
+            <p id="live-transcript-empty" class="muted">Press “Start replay” to begin.</p>
+          </article>
         </div>
       </section>
-    </div>
+    </main>
 
-    <!-- Right Sidebar (Transcript) -->
-    <aside class="w-96 glass-panel rounded-2xl flex flex-col border border-slate-700/50 flex-shrink-0 relative overflow-hidden">
-      <div class="p-4 border-b border-slate-700/50 flex justify-between items-center bg-slate-800/40">
-        <h3 class="font-semibold text-lg text-slate-200">Live Transcript</h3>
-        <div class="text-xs font-medium bg-indigo-500/20 text-indigo-300 px-2.5 py-1 rounded-full border border-indigo-500/30 flex items-center gap-1.5">
-          <div class="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-pulse"></div>
-          AI Listening
-        </div>
-      </div>
-      
-      <div id="transcript-container" class="flex-1 overflow-y-auto p-4 space-y-4 scroll-smooth">
-        <div class="waiting-text flex flex-col gap-3">
-          <div class="animate-pulse flex gap-3">
-            <div class="w-8 h-8 bg-slate-700 rounded-full"></div>
-            <div class="flex-1 space-y-2 py-1">
-              <div class="h-2 bg-slate-700 rounded w-1/4"></div>
-              <div class="h-2 bg-slate-700 rounded w-3/4"></div>
-            </div>
-          </div>
-          <div class="animate-pulse flex gap-3 mt-2">
-            <div class="w-8 h-8 bg-slate-700 rounded-full"></div>
-            <div class="flex-1 space-y-2 py-1">
-              <div class="h-2 bg-slate-700 rounded w-1/3"></div>
-              <div class="h-2 bg-slate-700 rounded w-5/6"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      <!-- Fade out at bottom -->
-      <div class="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-slate-900 to-transparent pointer-events-none"></div>
-    </aside>
+    <footer class="footer muted small">
+      <a href="/api-docs">API docs</a>
+    </footer>
 
-  </main>
-  
-  <div id="toast-container" class="fixed bottom-4 right-4 flex flex-col gap-2 z-[9999]"></div>
-  <script src="app.js"></script>
-</body>
+    <div id="toast-container" class="toasts" aria-live="polite"></div>
+    <script src="/vendor/chart.umd.min.js" defer></script>
+    <script src="/js/app.js" defer></script>
+  </body>
 </html>
